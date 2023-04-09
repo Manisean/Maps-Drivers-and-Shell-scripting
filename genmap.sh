@@ -15,12 +15,19 @@ else
 fi
 
 function genmap() {
-    temp_map=$(shuf -r -n ${width} -e . "#")
-    for ((i=1; i<$height; i++)); do
-        temp_map="${temp_map}\n$(shuf -r -n ${width} -e . "#")"
+    temp_map=""
+    for ((i=0; i<$height; i++)); do
+        for ((j=0; j<$width; j++)); do
+            if [ $((RANDOM%2)) -eq 0 ]; then
+                temp_map+="#"
+            else
+                temp_map+="."
+            fi
+        done
+        temp_map+="\n"
     done
 
-    blnk_cnt=$(echo -e "${temp_map}" | tr -d "#" | wc -c)
+    blnk_cnt=$(echo -e "${temp_map}" | tr -d "#\n" | wc -c)
 
     nblank_percent=$((100 - (blnk_cnt * 100) / (width * height)))
 
@@ -40,4 +47,3 @@ done
 
 echo "Error: Could not generate map" >&2
 exit 1
-
