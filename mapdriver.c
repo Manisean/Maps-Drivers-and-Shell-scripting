@@ -1,14 +1,7 @@
 /****
- * ascii.c
- *
- * The ASCII character device driver implementation
- *
- * CREDITS:
- *   o Many parts of the driver code has to be credited to
- *     Ori Pomerantz, in his chardev.c (Copyright (C) 1998-1999)
- *
- *     Source:  The Linux Kernel Module Programming Guide (specifically,
- *              http://www.tldp.org/LDP/lkmpg/2.6/html/index.html)
+ * Mapdriver.c
+ * Program by: 
+ * 	  Mark Hunnewell, Kristen DeMatteo, and Sparrow Hopp
  */
 
 #include "mapdriver.h"
@@ -164,9 +157,19 @@ static ssize_t device_read(file, buffer, length, offset)
     }
 
     // copy data from the map buffer to user buffer
-    if (copy_to_user(buffer, map + *offset, bytes_available)) {
-        return -EFAULT;
-    }
+    while(length > 0)
+	{
+		/* Because the buffer is in the user data segment,
+		 * not the kernel data segment, assignment wouldn't
+		 * work. Instead, we have to use put_user which
+		 * copies data from the kernel data segment to the
+		 * user data segment.
+		 */
+		put_user(status.curr_char, buffer++);
+
+		length--;
+		bytes_read++;
+	}
 
     *offset += bytes_available; // update offset to reflect number of bytes read
     bytes_read = bytes_available;
@@ -244,14 +247,12 @@ long my_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
                 int i, len;
                 bool error = false;
 
-                // check byte length over width of the first line
                 len = strcspn(map, "\n");
                 if ((len % WIDTH) != 0) {
                     printk(KERN_INFO "Map is inconsistent: byte length over width of the first line does not yield an integer.\n");
                     error = true;
                 }
 
-                // check for non-printable ASCII characters
                 for (i = 0; i < BSIZE; i++) {
                     if (map[i] == '\0') {
                         break;
@@ -269,7 +270,7 @@ long my_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
                 break;
             }
         default:
-            return -ENOTTY;  // ioctl command not recognized
+            return -ENOTTY;
     }
 
     return 0;
@@ -280,19 +281,19 @@ static loff_t device_lseek(struct file *file, loff_t offset, int whence)
     loff_t newpos = 0;
 
     switch (whence) {
-        case 0: // SEEK_SET
+        case 0:
             newpos = offset;
             break;
 
-        case 1: // SEEK_CUR
+        case 1: 
             newpos = file->f_pos + offset;
             break;
 
-        case 2: // SEEK_END
+        case 2: 
             newpos = strlen(map) + offset;
             break;
 
-        default: // invalid whence
+        default:
             return -EINVAL;
     }
 

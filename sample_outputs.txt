@@ -1,0 +1,56 @@
+~$./mapdriver-test test.txt 1 120 20
+
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+MMXkxxxxxkXNOxxxxxx0XOxxxxk0OxxxxOXMMMMNOxxxxOXKxxxxxkOkxxxxxxkk0XWMMMMMMMN0xolllokKWMXkxxxxO0kxxxxOMM                  
+MWd.      lk'      ;x,    .:'    .kMMMMO.    .d;     ':.        ..lKMMMMM0:.       .lKk.    ':.    ,MM                  
+MWd       ,c.      ,x,    .:.    .kMMMMO.    .'.    .od.           cNMMMX:    ..     ox.    .:.    'MM                  
+MWd       ..       ,x,    .:.    .kMMMMO.           :Xx.    ';.    ,KMMMK,    .:.    ld.    .:.    'MM                  
+MWd                ,x,     .     .kMMMMO.          .OMx.    'c.    ,KMMMX:     ..;dkOXk.     .     'MM                  
+MWd                ,x,           .kMMMMO.          cNMx.    'c.    ,KMMMM0:       .l0Wk.           'MM                  
+MWd                ,x,           .kMMMMO.          '0Mx.    'c.    ,KMMMMWXkc.      .xx.           'MM                  
+MWd                ,x,    .,.    .kMMMMO.           cNx.    'c.    ,KMMMNd;,,...     ,l.    .,.    'MM                  
+MWd    ..    ..    ,x,    .:.    .kMMMMO.           .kx.    .;.    ,KMMMX:    'o'    'c.    .:.    'MM                  
+MWd    .;.   ''    ,x,    .:.    .kMMMMO.    .'      ;l.           :XMMMWo     ..    ,l.    .:.    'MM                  
+MWd.   .l'   ::    ;x,    .:.    .kMMMMO.    .l,     ...         .,OWMMMMXl.       .;Ox.    ':.    ,MM                  
+MMKxdddkKOddxK0xdddOXOddddk0kddddkXMMMMNkddddkX0ddddddxxddddddxxk0NMMMMMMMWKkolllox0NMXkddddk0kddddOMM                  
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+                                                                                                                        
+
+~$./mapdriver-test test.txt 1 50 1
+                                                                                                                        
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+MMXkxxxxxkXNOxxxxxx0XOxxxxk0OxxxxOXMMMMNOxxxxOXKxx
+MWd.      lk'      ;x,    .:'    .kMMMMO.    .d;  
+MWd       ,c.      ,x,    .:.    .kMMMMO.    .'.  
+MWd       ..       ,x,    .:.    .kMMMMO.         
+MWd                ,x,     .     .kMMMMO.         
+MWd                ,x,           .kMMMMO.         
+MWd                ,x,           .kMMMMO.         
+MWd                ,x,    .,.    .kMMMMO.         
+
+
+~/.mapdriver-test test.txt 10 120 20
+
+    'c.    ,KMMMMWXkc.      .xx.           'MM                                                                          
+MWd                ,x,    .,.    .kMMMMO.           cNx.    'c.    ,KMMMNd;,,...     ,l.    .,.    'MM                  
+MWd    ..    ..    ,x,    .:.    .kMMMMO.           .kx.    .;.    ,KMMMX:    'o'    'c.    .:.    'MM                  
+MWd    .;.   ''    ,x,    .:.    .kMMMMO.    .'      ;l.           :XMMMWo     ..    ,l.    .:.    'MM                  
+MWd.   .l'   ::    ;x,    .:.    .kMMMMO.    .l,     ...         .,OWMMMMXl.       .;Ox.    ':.    ,MM                  
+MMKxdddkKOddxK0xdddOXOddddk0kddddkXMMMMNkddddkX0ddddddxxddddddxxk0NMMMMMMMWKkolllox0NMXkddddk0kddddOMM                  
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM                  
+                                                                                                                                                                                                
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        

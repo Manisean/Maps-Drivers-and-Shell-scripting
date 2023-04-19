@@ -1,14 +1,3 @@
-####
-#
-# Makefile
-#
-# Main makefile to build: - ASCII character device driver
-#                         - main() to test the driver
-#
-# Serguei Mokhov
-#
-##
-
 CC=gcc
 DEBUG=-g -D_DEBUG
 DEFINE=-DMODULE -D__KERNEL__ -DLINUX
@@ -58,6 +47,12 @@ main.o: main.c common.h
 
 $(DRIVER): types.h mapdriver.h mapdriver.c
 	$(CC) $(CC_OPTIONS) $(INC) -c mapdriver.c
+
+test1:
+	./$(EXE) test.txt 1 120 20
+
+test2:
+	./$(EXE) test.txt 1 120 20 test.txt 10 120 20
 
 clean-all:
 	make clean
