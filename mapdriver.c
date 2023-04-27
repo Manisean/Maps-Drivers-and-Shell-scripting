@@ -23,19 +23,11 @@ static driver_status_t status =
 	-1     /* minor */
 };
 
-char map[BSIZE*BSIZE + WIDTH] = {0};
-void init_map(void) {
-    size_t i, j, k;
-
-    for (i = 0, k = 0; i < WIDTH; i++) {
-        for (j = 0; j < HEIGHT; j++, k++) {
-            map[k] = member_map[i][j];
-        }
-        map[k++] = '\n';
-    }
-    map[k] = '\0';
+char map[BSIZE*BSIZE+WIDTH];
+void init_map(void)
+{	
+	memcpy(map, member_map, sizeof(member_map));
 }
-
 
 /* This function is called whenever a process
  * attempts to open the device file
@@ -145,39 +137,24 @@ static ssize_t device_read(file, buffer, length, offset)
     char*        buffer;  /* The buffer to fill with data */
     size_t       length;  /* The length of the buffer */
     loff_t*      offset;  /* Our offset in the file */
-{
+{	
+	int buff_len;
 	int bytes_read = 0;
-    int map_size = strlen(map);
-    int bytes_available = map_size - *offset;
-    if (bytes_available <= 0) { 
+
+	buff_len = sizeof(map);
+
+    if (*offset >= buff_len)
         return 0;
+
+    if (*offset + length > buff_len)
+        length = buff_len - *offset;
+
+    while (bytes_read < length) {
+		put_user(map[bytes_read], buffer++);
+        bytes_read++;
     }
-    if (bytes_available > length) {
-        bytes_available = length;
-    }
 
-    // copy data from the map buffer to user buffer
-    while(length > 0)
-	{
-		/* Because the buffer is in the user data segment,
-		 * not the kernel data segment, assignment wouldn't
-		 * work. Instead, we have to use put_user which
-		 * copies data from the kernel data segment to the
-		 * user data segment.
-		 */
-		put_user(status.curr_char, buffer++);
-
-		length--;
-		bytes_read++;
-	}
-
-    *offset += bytes_available; // update offset to reflect number of bytes read
-    bytes_read = bytes_available;
-
-    // if all bytes have been read, reset the buffer pointer to the beginning
-    if (*offset >= map_size) {
-        *offset = 0;
-    }
+    *offset += bytes_read;
 
     return bytes_read;
 }
@@ -188,45 +165,28 @@ static ssize_t device_read(file, buffer, length, offset)
  */
 static ssize_t device_write(file, buffer, length, offset)
 	struct file* file;
-	const char*  buffer;  /* The buffer with the data to write */
-    size_t       length;  /* The length of the buffer */
-    loff_t*      offset;  /* Our offset in the file */
+	const char*  buffer;  /* The buffer */
+	size_t       length;  /* The length of the buffer */
+	loff_t*      offset;  /* Our offset in the file */
 {
-	int bytes_written = 0;
+	ssize_t bytes_written = 0;
+	int buff_len = sizeof(map);
 
-	/* Determine the current position in the buffer */
-	char *curr_pos = status.buf + *offset;
-	char *end_pos = status.buf + BSIZE*BSIZE;
+    if (length > buff_len) { // check if the write size is larger than the buffer size
+        printk(KERN_WARNING "write size is larger than buffer size\n");
+        length = buff_len; // if it is, truncate the write size to the buffer size
+    }
 
-	/* Check if writing beyond the end of the buffer */
-	if (curr_pos + length > end_pos) {
-		printk("ascii::device_write() - Write exceeds buffer size\n");
-		return -EINVAL;
-	}
+    if (copy_from_user(map, buffer, length) != 0) { // copy the data from the user space buffer to the kernel space buffer
+        return -EFAULT;
+    }
 
-	/* Write data to the buffer */
-	while (length > 0) {
-		get_user(*curr_pos++, buffer++);
-		length--;
-		bytes_written++;
-	}
+    bytes_written = length;
+    *offset += length;
 
-#ifdef _DEBUG
-	printk("ascii::device_write() - Wrote %d bytes, %d left\n", bytes_written, length);
-#endif
+    printk(KERN_INFO "%zd bytes written\n", bytes_written);
 
-	/* Update the offset */
-	*offset += bytes_written;
-
-	/* Update the buffer length if necessary */
-	if (*offset > length) {
-		length = *offset;
-	}
-
-	/* Write functions are supposed to return the number
-	 * of bytes actually written to the device
-	 */
-	return bytes_written;
+    return bytes_written;
 }
 
 long my_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
@@ -235,7 +195,7 @@ long my_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
         case RESET_MAP:
             // reset the map to its initial state
             memset(map, 0, sizeof(map));
-            init_map();
+			init_map();
             break;
         case ZERO_OUT_BUFFER:
             // zero out the entire buffer
@@ -290,14 +250,14 @@ static loff_t device_lseek(struct file *file, loff_t offset, int whence)
             break;
 
         case 2: 
-            newpos = strlen(map) + offset;
+            newpos = strlen(status.buf) + offset;
             break;
 
         default:
             return -EINVAL;
     }
 
-    if (newpos < 0 || newpos > strlen(map))
+    if (newpos < 0 || newpos > strlen(status.buf))
         return -EINVAL;
 
     file->f_pos = newpos;
@@ -317,7 +277,9 @@ init_module(void)
 		DEVICE_NAME,
 		&Fops
 	);
-
+	
+	init_map();	
+	
 	/* Negative values signify an error */
 	if(status.major < 0)
 	{

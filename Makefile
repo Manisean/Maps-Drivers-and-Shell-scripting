@@ -17,13 +17,11 @@ obj-m += $(DRIVER)
 
 all: $(EXE)
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
-	@echo ""
-	@echo "ASCII Character Device Driver and the Test Program have been built."
-	@echo "Type 'make register' to register ASCII device module."
-	@echo "Then follow module's suggestion to mknod /dev/asciimap with the correct major number!"
-	@echo "EXTREME CAUTION IS HIGHLY RECOMMENDED. NOT TO USE ON YOUR OWN"
-	@echo "MACHINE OR NUCLEAR POWER PLANTS :) THERE MAY BE CONSEQUENCES"
-	@echo ""
+
+prog:
+	make register
+	mknod /dev/asciimap c 236 0
+	chmod 766 /dev/asciimap
 
 clean:
 	rm -f $(EXE) $(OBJ)
@@ -55,8 +53,6 @@ test2:
 	./$(EXE) test.txt 1 120 20 test.txt 10 120 20
 
 clean-all:
-	make clean
 	rmmod mapdriver
-	lsmod
 
 # EOF

@@ -10,11 +10,7 @@ $ make
 
 Then register an ASCII driver:
 
-$ make register
-
-Then enter dmesg
-
-Then after assigning your register you're ready to fo
+$ sudo make prog
 
 To run the test program type:
 $ ./mapdriver-test
@@ -25,7 +21,8 @@ or
 $ make test2
 
 to clean the program:
-$ make clean-all
+$ sudo make clean-all
+$ make clean
 
 Known Issues
 ------------
