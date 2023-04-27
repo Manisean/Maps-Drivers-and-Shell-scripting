@@ -27,6 +27,18 @@
 #define	min(a, b)         (a < b ? a : b)
 #define	max(a, b)         (a > b ? a : b)
 
+/* Socket definitions and includes */
+#define DEFAULT_PORT 23032
+#define DEFAULT_IP "127.0.0.1"
+#define MAP_PATH "/dev/asciimap"
+
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <errno.h>
 
 /* Debugging / Logging Macros */
 
