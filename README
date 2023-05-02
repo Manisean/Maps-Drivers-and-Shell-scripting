@@ -24,6 +24,10 @@ to clean the program:
 $ sudo make clean-all
 $ make clean
 
+Socket Tests
+------------
+Socket tests are currently in the client's main function. Run the main to test.
+
 Known Issues
 ------------
 When running multiple files will print the following messages for each parameter:
