@@ -57,6 +57,57 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  // Tests
+    // Read and print the maps 10 times
+    for (int i = 0; i < 10; i++) {
+        // Send request to server
+        char requestTest[2 + 2 * sizeof(int)];
+        memset(requestTest, 0, sizeof(requestTest));
+        requestTest[0] = 'M';
+        requestTest[1] = 0;
+        if (write(sock, requestTest, sizeof(requestTest)) < 0) {
+            perror("write() failed");
+            exit(1);
+        }
+
+        // Receive map from server
+        char header[sizeof(char) + 2 * sizeof(int)];
+        if (read(sock, header, sizeof(header)) < 0) {
+            perror("read() failed");
+            exit(1);
+        }
+
+        if (header[0] == 'M') {
+            int width = *(int *) &header[1];
+            int height = *(int *) &header[1 + sizeof(int)];
+            int map_size = width * height;
+
+            char map[map_size];
+            if (read(sock, map, map_size) < 0) {
+                perror("read() failed");
+                exit(1);
+            }
+
+            // Print map to STDOUT
+            printf("Map %d:\n", i + 1);
+            print_map(map, width, height);
+        } else if (header[0] == 'E') {
+            int error_len = *(int *) &header[1];
+
+            char error[error_len + 1];
+            if (read(sock, error, error_len) < 0) {
+                perror("read() failed");
+                exit(1);
+            }
+            error[error_len] = '\0';
+
+            fprintf(stderr, "Error: %s\n", error);
+        } else {
+            fprintf(stderr, "Unrecognized protocol message\n");
+        }
+    }
+
+
   // Send a request for a map
   struct Message request;
   request.code = 'M';
