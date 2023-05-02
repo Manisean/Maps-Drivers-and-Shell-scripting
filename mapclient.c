@@ -7,6 +7,19 @@ struct Message {
 };
 
 int main(int argc, char **argv) {
+
+    //set up client log
+    int logid = open(CLIENT_LOG, O_WRONLY);
+    if (logid == -1)
+    {
+        char err_msg[256];
+        //use snprintf)_ to print to the buffer instead of to stdout
+        snprintf(err_msg, 256, "Error opening file '%s'", CLIENT_LOG);
+        //use perror() to output the specific error
+        perror(err_msg);
+        return 1;
+    }
+
     int opt;
     char *ip = DEFAULT_IP;
     int port = DEFAULT_PORT;
@@ -101,6 +114,7 @@ int main(int argc, char **argv) {
 
   // Close the socket
   close(sock);
+  close(logid);
 
   return 0;
 }
