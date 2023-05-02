@@ -30,7 +30,13 @@
 /* Socket definitions and includes */
 #define DEFAULT_PORT 23032
 #define DEFAULT_IP "127.0.0.1"
-#define MAP_PATH "/dev/asciimap"
+
+#define REQUEST_SIZE 2
+#define RESPONSE_SIZE 8192
+
+#define REQUEST_MAP 'M'
+#define RESPONSE_MAP 'M'
+#define RESPONSE_ERROR 'E'
 
 #include <string.h>
 #include <unistd.h>

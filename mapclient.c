@@ -1,171 +1,71 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
 #include "common.h"
 
-
-struct Message {
-    char code;
-    int data[BSIZE];
-};
-
 int main(int argc, char **argv) {
-
-    //set up client log
-    int logid = open(CLIENT_LOG, O_WRONLY);
-    if (logid == -1)
-    {
-        char err_msg[256];
-        //use snprintf)_ to print to the buffer instead of to stdout
-        snprintf(err_msg, 256, "Error opening file '%s'", CLIENT_LOG);
-        //use perror() to output the specific error
-        perror(err_msg);
+    if (argc != 3) {
+        printf("Usage: %s width height\n", argv[0]);
         return 1;
     }
 
-    int opt;
-    char *ip = DEFAULT_IP;
-    int port = DEFAULT_PORT;
+    int width = atoi(argv[1]);
+    int height = atoi(argv[2]);
 
-    while ((opt = getopt(argc, argv, "i:p:")) != -1) {
-        switch (opt) {
-        case 'i':
-            ip = optarg;
-            break;
-        case 'p':
-            port = atoi(optarg);
-            break;
-        default:
-            printf("Usage: %s [-i IP] [-p port]\n", argv[0]);
-            exit(EXIT_FAILURE);
-        }
+    // Create socket
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        perror("socket");
+        return 1;
     }
 
-  // Create a socket
-  int sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock < 0) {
-    perror("Socket creation failed");
-    exit(EXIT_FAILURE);
-  }
+    // Connect to server
+    struct sockaddr_in server_address;
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = inet_addr(DEFAULT_IP);
+    server_address.sin_port = htons(DEFAULT_PORT);
 
-  // Specify the server address and port
-  struct sockaddr_in server_addr;
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(port);
-  server_addr.sin_addr.s_addr = inet_addr(ip);
-
-  // Connect to the server
-  if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    perror("connection failed");
-    exit(EXIT_FAILURE);
-  }
-
-  // Tests
-    // Read and print the maps 10 times
-    for (int i = 0; i < 10; i++) {
-        // Send request to server
-        char requestTest[2 + 2 * sizeof(int)];
-        memset(requestTest, 0, sizeof(requestTest));
-        requestTest[0] = 'M';
-        requestTest[1] = 0;
-        if (write(sock, requestTest, sizeof(requestTest)) < 0) {
-            perror("write() failed");
-            exit(1);
-        }
-
-        // Receive map from server
-        char header[sizeof(char) + 2 * sizeof(int)];
-        if (read(sock, header, sizeof(header)) < 0) {
-            perror("read() failed");
-            exit(1);
-        }
-
-        if (header[0] == 'M') {
-            int width = *(int *) &header[1];
-            int height = *(int *) &header[1 + sizeof(int)];
-            int map_size = width * height;
-
-            char map[map_size];
-            if (read(sock, map, map_size) < 0) {
-                perror("read() failed");
-                exit(1);
-            }
-
-            // Print map to STDOUT
-            printf("Map %d:\n", i + 1);
-            print_map(map, width, height);
-        } else if (header[0] == 'E') {
-            int error_len = *(int *) &header[1];
-
-            char error[error_len + 1];
-            if (read(sock, error, error_len) < 0) {
-                perror("read() failed");
-                exit(1);
-            }
-            error[error_len] = '\0';
-
-            fprintf(stderr, "Error: %s\n", error);
-        } else {
-            fprintf(stderr, "Unrecognized protocol message\n");
-        }
+    if (connect(sock, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
+        perror("connect");
+        return 1;
     }
 
+    // Send request to server
+    char request[REQUEST_SIZE];
+    request[0] = REQUEST_MAP;
+    *((int *)(request+1)) = width;
+    *((int *)(request+1+sizeof(int))) = height;
 
-  // Send a request for a map
-  struct Message request;
-  request.code = 'M';
-  request.data[0] = 0;  // Default map size
+    if (send(sock, request, REQUEST_SIZE, 0) < 0) {
+        perror("send");
+        return 1;
+    }
 
-  // Uncomment the following lines if want to specify map size
-  //request.data[0] = 1;
-  //request.data[1] = <width>;
-  //request.data[2] = <height>;
+    // Receive response from server
+    char response[MAP_SIZE+2*sizeof(int)];
+    if (recv(sock, response, MAP_SIZE+2*sizeof(int), 0) < 0) {
+        perror("recv");
+        return 1;
+    }
 
-  int request_size = sizeof(request.code) + sizeof(request.data);
-  int bytes_sent = send(sock, (void *)&request, request_size, 0);
-  if (bytes_sent != request_size) {
-    perror("failed to send request");
-    exit(EXIT_FAILURE);
-  }
+    if (response[0] != RESPONSE_MAP) {
+        printf("Received invalid response type from server.\n");
+        return 1;
+    }
 
-  // Read the server's response
-  char response_type;
-  recv(client_sock, &response_type, sizeof(char), 0);
-  if (response_type == 'M') {
-    // Read the map size
-    int map_size;
-    recv(client_sock, &map_size, sizeof(int), 0);
+    int response_width = *((int *)(response+1));
+    int response_height = *((int *)(response+1+sizeof(int)));
 
-    // Read the map data
-    char *map = (char *)malloc(map_size);
-    recv(client_sock, map, map_size, 0);
+    printf("Received map with dimensions %d x %d\n", response_width, response_height);
+    printf("%s\n", response+1+2*sizeof(int));
 
-    // Output the map to STDOUT
-    fwrite(map, 1, map_size, stdout);
-    fflush(stdout);
+    // Close socket
+    close(sock);
 
-    free(map);
-  } else if (response_type == 'E') {
-    // Read the error message length
-    int error_length;
-    recv(client_sock, &error_length, sizeof(int), 0);
-
-    // Read the error message data
-    char *error = (char *)malloc(error_length + 1);
-    recv(client_sock, error, error_length, 0);
-    error[error_length] = '\0';
-
-    // Output the error to STDERR
-    fprintf(stderr, "%s\n", error);
-    fflush(stderr);
-
-    free(error);
-  } else {
-    // Unrecognized message type
-    fprintf(stderr, "Unrecognized protocol message from server\n");
-    exit(EXIT_FAILURE);
-  }
-
-  // Close the socket
-  close(sock);
-  close(logid);
-
-  return 0;
+    return 0;
 }

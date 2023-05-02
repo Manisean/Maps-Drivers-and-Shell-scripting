@@ -11,11 +11,12 @@ INC=-I. -I/usr/include -I/usr/src/kernels/`uname -r`/include
 DRIVER=mapdriver.o
 MODULE=mapdriver.ko
 EXE=mapdriver-test
+CLIENT=mapclient
 OBJ=main.o $(DRIVER)
 
 obj-m += $(DRIVER)
 
-all: $(EXE)
+all: $(EXE) $(CLIENT)
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 prog:
@@ -24,7 +25,7 @@ prog:
 	chmod 766 /dev/asciimap
 
 clean:
-	rm -f $(EXE) $(OBJ)
+	rm -f $(EXE) $(OBJ) $(CLIENT)
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 
 compile: $(EXE) $(OBJ)
@@ -37,12 +38,6 @@ register: $(DRIVER)
 	@echo "ASCII Character Device Driver has been built and registered."
 	@echo ""
 
-$(EXE): main.o
-	$(CC) main.o -o $(EXE)
-
-main.o: main.c common.h
-	$(CC) $(CC_OPTIONS) $(INC) -c main.c
-
 $(DRIVER): types.h mapdriver.h mapdriver.c
 	$(CC) $(CC_OPTIONS) $(INC) -c mapdriver.c
 
@@ -54,5 +49,18 @@ test2:
 
 clean-all:
 	rmmod mapdriver
+
+$(CLIENT): mapclient.c common.c common.h
+	$(CC) $(CC_OPTIONS) $(INC) -o $(CLIENT) mapclient.c common.c
+
+$(EXE): mapdriver.c common.c common.h
+	$(CC) $(CC_OPTIONS) $(INC) -o $(EXE) mapdriver.c common.c
+
+run-server: mapserver
+	./mapserver 3000
+
+mapserver: mapserver.c common.c common.h
+	$(CC) $(CC_OPTIONS) $(INC) -o mapserver mapserver.c common.c -D_DEFAULT_SOURCE
+
 
 # EOF

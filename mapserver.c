@@ -1,205 +1,158 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <errno.h>
 #include "common.h"
 
-struct Message {
-  char code;
-  int data[2];
-};
+#define LOG_FILE "mapserver.log"
+#define MAP_FILE "/dev/asciimap"
+#define MAP_SIZE 80*24
 
-void handle_request(int client_sock) {
-    // Read the request from the client
-    struct Message request;
-    int bytes_received = recv(client_sock, (void *)&request, sizeof(request), 0);
-    if (bytes_received < 0) {
-        perror("failed to receive request");
-        exit(EXIT_FAILURE);
-    }
-
-    // Validate the request
-    if (request.code != 'M' || (request.data[0] != 0 && request.data[0] != 1)) {
-        // Send an error response
-        int error_len = strlen("invalid request");
-        int response_size = sizeof(char) + sizeof(int) + error_len;
-        char *response = (char *)malloc(response_size);
-        response[0] = 'E';
-        memcpy(response + 1, &error_len, sizeof(int));
-        memcpy(response + sizeof(char) + sizeof(int), "invalid request", error_len);
-        send(client_sock, response, response_size, 0);
-        free(response);
-        return;
-    }
-
-    // Handle the request
-    if (request.data[0] == 0) {
-        // Default map size
-        int map_size = 10;
-        char *map = (char *)malloc(map_size);
-        // Fill the map with some data
-        // ...
-        // Send the map to the client
-        int response_size = sizeof(char) + sizeof(int)*2 + map_size;
-        char *response = (char *)malloc(response_size);
-        response[0] = 'M';
-        memcpy(response + 1, &map_size, sizeof(int)*2);
-        memcpy(response + 1 + sizeof(int)*2, map, map_size);
-        send(client_sock, response, response_size, 0);
-        free(map);
-        free(response);
-    } else {
-        // Custom map size
-        int width = request.data[1];
-        int height = request.data[2];
-        if (width <= 0 || height <= 0) {
-        // Send an error response
-        int error_len = strlen("invalid map size");
-        int response_size = sizeof(char) + sizeof(int) + error_len;
-        char *response = (char *)malloc(response_size);
-        response[0] = 'E';
-        memcpy(response + 1, &error_len, sizeof(int));
-        memcpy(response + sizeof(char) + sizeof(int), "invalid map size", error_len);
-        send(client_sock, response, response_size, 0);
-        free(response);
-        return;
-        }
-        int map_size = width * height;
-        char *map = (char *)malloc(map_size);
-        // Fill the map with some data
-        // ...
-        // Send the map to the client
-        int response_size = sizeof(char) + sizeof(int)*2 + map_size;
-        char *response = (char *)malloc(response_size);
-        response[0] = 'M';
-        memcpy(response + 1, &width, sizeof(int));
-        memcpy(response + 1 + sizeof(int), &height, sizeof(int));
-        memcpy(response + 1 + sizeof(int)*2, map, map_size);
-        send(client_sock, response, response_size, 0);
-        free(map);
-        free(response);
+void log_message(char *message) {
+    FILE *log_file = fopen(LOG_FILE, "a");
+    if (log_file) {
+        fprintf(log_file, "%s\n", message);
+        fclose(log_file);
     }
 }
 
+void send_error(int client_socket, char *error_message) {
+    int message_size = sizeof(char) + sizeof(int) + strlen(error_message);
+    char *message = malloc(message_size);
+    message[0] = RESPONSE_ERROR;
+    *((int *)(message+1)) = strlen(error_message);
+    memcpy(message+sizeof(char)+sizeof(int), error_message, strlen(error_message));
+    send(client_socket, message, message_size, 0);
+    free(message);
+}
+
+void handle_client(int client_socket) {
+    char request[REQUEST_SIZE];
+    if (recv(client_socket, request, REQUEST_SIZE, 0) < 0) {
+        perror("recv");
+        log_message("Error: Failed to receive request from client.");
+        return;
+    }
+
+    if (request[0] != REQUEST_MAP) {
+        log_message("Error: Received invalid request type.");
+        send_error(client_socket, "Invalid request type.");
+        return;
+    }
+
+    int width, height;
+    if (request[1] == 0) {
+        width = height = -1;
+    } else if (recv(client_socket, &width, sizeof(int), 0) < 0 || recv(client_socket, &height, sizeof(int), 0) < 0) {
+        perror("recv");
+        log_message("Error: Failed to receive request size from client.");
+        return;
+    }
+
+    // Read map from file
+    char map[MAP_SIZE];
+    FILE *map_file = fopen(MAP_FILE, "r");
+    if (!map_file) {
+        char error_message[100];
+        snprintf(error_message, sizeof(error_message), "Failed to open map file %s: %s", MAP_FILE, strerror(errno));
+        send_error(client_socket, error_message);
+        log_message(error_message);
+        return;
+    }
+
+    if (fread(map, 1, MAP_SIZE, map_file) < MAP_SIZE) {
+        char error_message[100];
+        snprintf(error_message, sizeof(error_message), "Failed to read entire map from file %s: %s", MAP_FILE, strerror(errno));
+        send_error(client_socket, error_message);
+        log_message(error_message);
+        fclose(map_file);
+        return;
+    }
+    fclose(map_file);
+
+    // Send map to client
+    int response_size = sizeof(char) + 2*sizeof(int) + MAP_SIZE;
+    char *response = malloc(response_size);
+    response[0] = RESPONSE_MAP;
+    *((int *)(response+sizeof(char))) = width;
+    *((int *)(response+sizeof(char)+sizeof(int))) = height;
+    memcpy(response+sizeof(char)+2*sizeof(int), map, MAP_SIZE);
+    if (send(client_socket, response, response_size, 0) < 0) {
+    perror("send");
+    log_message("Error: Failed to send response to client.");
+    free(response);
+    return;
+}
+free(response);
+}
+
 int main(int argc, char **argv) {
-    
-    //set up the log
-    int servid = open(SERVER_LOG, O_WRONLY);
-    if (servid == -1)
-    {
-        char err_msg[256];
-        //use snprintf)_ to print to the buffer instead of to stdout
-        snprintf(err_msg, 256, "Error opening file '%s'", filename);
-        //use perror() to output the specific error
-        perror(err_msg);
+    int server_socket, client_socket, opt = 1;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    // Create server socket
+    if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("socket");
         return 1;
     }
-    // Parse command line arguments
-    int port = DEFAULT_PORT;
-    char *ip = DEFAULT_IP;
-    if (argc >= 2) {
-        ip = argv[1];
-    }
-    if (argc >= 3) {
-        port = atoi(argv[2]);
+
+    // Set socket options
+    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) < 0) {
+        perror("setsockopt");
+        return 1;
     }
 
-    // Create a socket
-    int server_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_sock < 0) {
-        perror("failed to create socket");
-        exit(EXIT_FAILURE);
-    }
-    fprintf(servid, "Successfully created socket %d\n", server_sock);
+    // Bind socket to port and address
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_port = htons(DEFAULT_PORT);
 
-    // Bind to the address
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(ip);
-    addr.sin_port = htons(port);
-    if (bind(server_sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        perror("failed to bind to address");
-        exit(EXIT_FAILURE);
+    if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("bind");
+        return 1;
     }
-    fprintf(servid, "Successfully bound to address\n");
 
-    // Listen for connections
-    if (listen(server_sock, 1) < 0) {
-        perror("failed to listen for connections");
-        exit(EXIT_FAILURE);
+    // Listen for incoming connections
+    if (listen(server_socket, SOMAXCONN) < 0) {
+        perror("listen");
+        return 1;
     }
-    fprintf(servid, "Listening for connections...\n");
 
-    // Accept incoming connections and handle them one by one
+    // Accept incoming connections and handle them in separate processes
     while (1) {
-        struct sockaddr_in client_addr;
-        socklen_t client_addr_len = sizeof(client_addr);
-        int client_sock = accept(server_sock, (struct sockaddr *)&client_addr, &client_addr_len);
-        if (client_sock < 0) {
-        perror("failed to accept incoming connection");
-        fprintf(servid, "failed to accept incoming connection");
-        continue;
+        if ((client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len)) < 0) {
+            perror("accept");
+            continue;
         }
-        fprintf(servid, "Accepted incoming connection\n");
 
-        // Spawn a child process to handle the client request
-        pid_t pid = fork();
-        if (pid < 0) {
-        perror("failed to spawn child process");
-        fprintf(servid, "failed to spawn child process\n");
-        close(client_sock);
-        continue;
+        char *client_ip = inet_ntoa(client_addr.sin_addr);
+        char message[100];
+        snprintf(message, sizeof(message), "Accepted connection from %s:%d", client_ip, ntohs(client_addr.sin_port));
+        log_message(message);
+
+        pid_t pid;
+        if ((pid = fork()) < 0) {
+            perror("fork");
+            log_message("Error: Failed to fork new process to handle client connection.");
+            close(client_socket);
+            continue;
         } else if (pid == 0) {
             // Child process
-
-            // Read the client's request
-            char request_type;
-            recv(client_sock, &request_type, sizeof(char), 0);
-            if (request_type != 'M') {
-                // Unrecognized request type
-                int error_length = strlen("Unrecognized request type");
-                char *error = (char *)malloc(error_length + 1);
-                strcpy(error, "Unrecognized request type");
-                send_error(client_sock, error, error_length);
-                free(error);
-                close(client_sock);
-                exit(EXIT_FAILURE);
-            }
-    
-            int request_size;
-            recv(client_sock, &request_size, sizeof(int), 0);
-            if (request_size != sizeof(int) && request_size != sizeof(int) * 2) {
-                // Invalid request size
-                int error_length = strlen("Invalid request size");
-                char *error = (char *)malloc(error_length + 1);
-                strcpy(error, "Invalid request size");
-                send_error(client_sock, error, error_length);
-                free(error);
-                close(client_sock);
-                exit(EXIT_FAILURE);
-            }
-    
-            int map_width = 0;
-            int map_height = 0;
-            if (request_size == sizeof(int) * 2) {
-                // Read the requested map dimensions
-                recv(client_sock, &map_width, sizeof(int), 0);
-                recv(client_sock, &map_height, sizeof(int), 0);
-            }
-
-            // Open the map file
-            int map_fd = open("/dev/asciimap", O_RDONLY);
-            if (map_fd < 0) {
-                perror("Failed to open /dev/asciimap");
-                exit(EXIT_FAILURE);
-            }
-            char map_buffer[MAP_SIZE];
-            int map_bytes_read = read(map_fd, map_buffer, MAP_SIZE);
-            if (map_bytes_read < 0) {
-                perror("Failed to read from /dev/asciimap");
-                exit(EXIT_FAILURE);
-            }   
+            close(server_socket);
+            handle_client(client_socket);
+            close(client_socket);
+            exit(0);
+        } else {
+            // Parent process
+            close(client_socket);
         }
     }
-    // Close the connection
-    close(client_sock);
-    close(servid);
 
     return 0;
 }
