@@ -9,10 +9,16 @@
 #include <errno.h>
 #include "common.h"
 
+
+#include <linux/fs.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include "mapdriver.h"
+
+#define DRIVER_PATH "/dev/asciimap"
 #define LOG_FILE "mapserver.log"
 #define MAP_FILE "/dev/asciimap"
 #define MAP_SIZE 80 * 24
-#define DEFAULT_PORT 8080
 
 void log_message(char *message) {
     FILE *log_file = fopen(LOG_FILE, "a");
@@ -32,64 +38,67 @@ void send_error(int client_socket, char *error_message) {
     free(message);
 }
 
+
 void handle_client(int client_socket) {
-    char request[REQUEST_SIZE];
-    if (recv(client_socket, request, REQUEST_SIZE, 0) < 0) {
-        perror("recv");
-        log_message("Error: Failed to receive request from client.");
-        return;
-    }
+	char request[REQUEST_SIZE];
+	if (recv(client_socket, request, REQUEST_SIZE, 0) < 0) {
+		perror("recv");
+		log_message("Error: Failed to receive request from client.");
+		return;
+	}
+	if (request[0] != REQUEST_MAP) {
+    log_message("Error: Received invalid request type.");
+    send_error(client_socket, "Invalid request type.");
+    return;
+	}
 
-    if (request[0] != REQUEST_MAP) {
-        log_message("Error: Received invalid request type.");
-        send_error(client_socket, "Invalid request type.");
-        return;
-    }
+	int width, height;
+	if (request[1] == 0) {
+	    width = height = -1;
+	} else {
+	    if (recv(client_socket, &width, sizeof(int), 0) < 0 || recv(client_socket, &height, sizeof(int), 0) < 0) {
+		perror("recv");
+		log_message("Error: Failed to receive request size from client.");
+		return;
+	    }
+	}
 
-    int width, height;
-    if (request[1] == 0) {
-        width = height = -1;
-    } else if (recv(client_socket, &width, sizeof(int), 0) < 0 || recv(client_socket, &height, sizeof(int), 0) < 0) {
-        perror("recv");
-        log_message("Error: Failed to receive request size from client.");
-        return;
-    }
+	// Read map from driver
+	int fd = open(DRIVER_PATH, O_RDONLY);
+	if (fd < 0) {
+	    char error_message[100];
+	    snprintf(error_message, sizeof(error_message), "Failed to open driver %s: %s", DRIVER_PATH, strerror(errno));
+	    send_error(client_socket, error_message);
+	    log_message(error_message);
+	    return;
+	}
 
-    // Read map from file
-    char map[MAP_SIZE];
-    FILE *map_file = fopen(MAP_FILE, "r");
-    if (!map_file) {
-        char error_message[100];
-        snprintf(error_message, sizeof(error_message), "Failed to open map file %s: %s", MAP_FILE, strerror(errno));
-        send_error(client_socket, error_message);
-        log_message(error_message);
-        return;
-    }
+	char map[MAP_SIZE];
+	ssize_t bytes_read = read(fd, map, MAP_SIZE);
+	if (bytes_read < 0) {
+	    char error_message[100];
+	    snprintf(error_message, sizeof(error_message), "Failed to read map from driver %s: %s", DRIVER_PATH, strerror(errno));
+	    send_error(client_socket, error_message);
+	    log_message(error_message);
+	    close(fd);
+	    return;
+	}
+	close(fd);
 
-    if (fread(map, 1, MAP_SIZE, map_file) < MAP_SIZE) {
-        char error_message[100];
-        snprintf(error_message, sizeof(error_message), "Failed to read entire map from file %s: %s", MAP_FILE, strerror(errno));
-        send_error(client_socket, error_message);
-        log_message(error_message);
-        fclose(map_file);
-        return;
-    }
-    fclose(map_file);
-
-    // Send map to client
-    int response_size = sizeof(char) + 2 * sizeof(int) + MAP_SIZE;
-    char *response = malloc(response_size);
-    response[0] = RESPONSE_MAP;
-    *((int *)(response + sizeof(char))) = width;
-    *((int *)(response + sizeof(char) + sizeof(int))) = height;
-    memcpy(response + sizeof(char) + 2 * sizeof(int), map, MAP_SIZE);
-    if (send(client_socket, response, response_size, 0) < 0) {
-        perror("send");
-        log_message("Error: Failed to send response to client.");
-        free(response);
-        return;
-    }
-    free(response);
+	// Send map to client
+	int response_size = sizeof(char) + 2 * sizeof(int) + MAP_SIZE;
+	char *response = malloc(response_size);
+	response[0] = RESPONSE_MAP;
+	*((int *)(response + sizeof(char))) = width;
+	*((int *)(response + sizeof(char) + sizeof(int))) = height;
+	memcpy(response + sizeof(char) + 2 * sizeof(int), map, MAP_SIZE);
+	if (send(client_socket, response, response_size, 0) < 0) {
+	    perror("send");
+	    log_message("Error: Failed to send response to client.");
+	    free(response);
+	    return;
+	}
+	free(response);
 }
 
 int main(int argc, char **argv) {

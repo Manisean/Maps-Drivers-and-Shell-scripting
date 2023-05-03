@@ -12,6 +12,7 @@ DRIVER=mapdriver.o
 MODULE=mapdriver.ko
 EXE=mapdriver-test
 CLIENT=mapclient
+SERVER=mapserver
 OBJ=main.o $(DRIVER)
 
 obj-m += $(DRIVER)
@@ -37,6 +38,12 @@ register: $(DRIVER)
 	@echo ""
 	@echo "ASCII Character Device Driver has been built and registered."
 	@echo ""
+	
+$(EXE): main.o
+	$(CC) main.o -o $(EXE)
+
+main.o: main.c common.h
+	$(CC) $(CC_OPTIONS) $(INC) -c main.c
 
 $(DRIVER): types.h mapdriver.h mapdriver.c
 	$(CC) $(CC_OPTIONS) $(INC) -c mapdriver.c
@@ -60,7 +67,9 @@ $(SERVER): mapserver.c common.c common.h
 	$(CC) $(CC_OPTIONS) $(INC) -o $(SERVER) mapserver.c common.c
 
 run-server: $(SERVER)
-	./$(SERVER) 3000
+	./$(SERVER) 23032
 
 .PHONY: all prog clean compile register test1 test2 clean-all run-server
+
+
 
