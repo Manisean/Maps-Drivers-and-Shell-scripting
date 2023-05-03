@@ -8,7 +8,29 @@
 #include <string.h>
 #include "common.h"
 
+#define LOG_FILE "mapclient.log"
+
+void log_message(char *message) {
+    FILE *log_file = fopen(LOG_FILE, "a");
+    if (log_file) {
+        fprintf(log_file, "%s\n", message);
+        fclose(log_file);
+    }
+}
+
 int main(int argc, char **argv) {
+
+    int clientid = open(CLIENT_LOG, O_WRONLY);
+    if (clientid == -1)
+    {
+        char err_msg[256];
+        //use snprintf)_ to print to the buffer instead of to stdout
+        snprintf(err_msg, 256, "Error opening file '%s'", CLIENT_LOG);
+        //use perror() to output the specific error
+        perror(err_msg);
+        return 1;
+    }
+
     if (argc != 3) {
         printf("Usage: %s width height\n", argv[0]);
         return 1;
@@ -23,7 +45,8 @@ int main(int argc, char **argv) {
         perror("socket");
         return 1;
     }
-
+    log_message("successfully made client socket\n\n");
+    
     // Connect to server
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET;
@@ -34,6 +57,7 @@ int main(int argc, char **argv) {
         perror("connect");
         return 1;
     }
+    fprintf("connected!\n\n");
 
     // Send request to server
     char request[REQUEST_SIZE];
@@ -45,6 +69,7 @@ int main(int argc, char **argv) {
         perror("send");
         return 1;
     }
+    log_message("sent a message to the server\n\n");
 
     // Receive response from server
     char response[MAP_SIZE+2*sizeof(int)];
@@ -57,12 +82,14 @@ int main(int argc, char **argv) {
         printf("Received invalid response type from server.\n");
         return 1;
     }
+    log_message("received a response from the server\n\n");
 
     int response_width = *((int *)(response+1));
     int response_height = *((int *)(response+1+sizeof(int)));
 
     printf("Received map with dimensions %d x %d\n", response_width, response_height);
     printf("%s\n", response+1+2*sizeof(int));
+    log_message("%s\n", response+1+2*sizeof(int));
 
     // Close socket
     close(sock);
