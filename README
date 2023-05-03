@@ -26,7 +26,7 @@ $ make clean
 
 Socket Tests
 ------------
-Socket tests are currently in the client's main function. Run the main to test.
+To run, first do make all, then start the server with ./mapserver and for client, do ./mapclient [length] [width] of desired map, ex: ./mapclient 10 10
 
 Known Issues
 ------------
