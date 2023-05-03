@@ -5,14 +5,107 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <errno.h>
 #include "common.h"
 
 #define MAX_LINE_LEN 1024
+#define MY_IOCTL_MAGIC 'm'
+#define RESET_MAP       _IO(MY_IOCTL_MAGIC, 0)
+#define ZERO_OUT_BUFFER _IO(MY_IOCTL_MAGIC, 1)
+#define CHECK_MAP       _IO(MY_IOCTL_MAGIC, 2)
+
+void test_ioctl(int fd){
+	int ret, op, np;
+	char buf[MAX_LINE_LEN];
+	char nonbuf[MAX_LINE_LEN];
+
+	ret = ioctl(fd, RESET_MAP, 0);
+	if (ret != 0) {
+		(void) fprintf(stderr, "RESET_MAP CAUSED ERROR, RETURNED: %d\n", ret);
+	}
+	op = read(fd, buf, sizeof(buf));
+	
+	printf("\nRESET PROOF: \n");
+	for (int i = 0; i < op; i++)
+		printf("%c", buf[i]);
+	printf("\n");
+
+	ret = ioctl(fd, CHECK_MAP, 0);
+	if (ret != 0) {
+		(void) fprintf(stderr, "CHECK MAP SUCC CAUSED ERROR, RETURNED: %d\n", ret);	
+	}
+	
+	np = open("nonascii.txt", O_RDONLY);
+	op = read(np, nonbuf, sizeof(nonbuf));
+	op = write(fd, nonbuf, sizeof(nonbuf));
+
+	ret = ioctl(fd, CHECK_MAP, 0);
+	if (ret != 0) {
+		(void) fprintf(stderr, "CHECK MAP FAil CAUSED ERROR, RETURNED: %d\n", ret);	
+	}
+	
+	ret = ioctl(fd, ZERO_OUT_BUFFER, 0);
+	if (ret != 0) {
+		(void) fprintf(stderr, "ZERO_OUT_BUFFER CAUSED ERROR, RETURNED: %d\n", ret);
+	}
+	op = read(fd, buf, sizeof(buf));
+	
+	printf("\nZERO_OUT PROOF: \n");
+	for (int i = 0; i < op; i++)
+		printf("%c", buf[i]);
+	printf("\n");
+
+	ioctl(fd, RESET_MAP, 0);
+
+	close(np);
+}
+
+void test_seek(int fd) {
+	int fp;
+	char buf[MAX_LINE_LEN];
+
+	fp = read(fd, buf, 200);
+	if (fp < 0)
+    	perror("read failed");
+	printf("\nBEFORE LSEEK BUF:\n");
+	for (int i = 0; i < fp; i++)
+		printf("%c", buf[i]);
+	printf("\n");
+
+	lseek(fd, 0, SEEK_SET);
+	fp = read(fd, buf, 200);
+	printf("\nAfter SEEK_SET (BEGIN):\n");
+	for (int i = 0; i < fp; i++)
+		printf("%c", buf[i]);
+	printf("\n");
+
+	lseek(fd, 200, SEEK_SET);
+	fp = read(fd, buf, 200);
+	printf("\nAfter SEEK_SET (OFF 200):\n");
+	for (int i = 0; i < fp; i++)
+		printf("%c", buf[i]);
+	printf("\n");
+
+	lseek(fd, 200, SEEK_CUR);
+	fp = read(fd, buf, 200);
+	printf("\nAfter SEEK_CUR (OFF 200):\n");
+	for (int i = 0; i < fp; i++)
+		printf("%c", buf[i]);
+	printf("\n");
+
+	lseek(fd, 0, SEEK_END);
+	fp = read(fd, buf, 200);
+	printf("\nAfter SEEK_END:\n");
+	for (int i = 0; i < fp; i++)
+		printf("%c", buf[i]);
+	printf("\n");
+}
+
 
 void generate_map(char * filename, int line_num, int width, int height) {
-    int fd, n, line_count;
+    int fd, n;
     char first_buf[MAX_LINE_LEN];
 
     // read data from buffer of /dev/asciimap
@@ -24,9 +117,10 @@ void generate_map(char * filename, int line_num, int width, int height) {
                 perror("read(asciimap) failed");
         } else {
             (void) printf("Original map received:  \n");
-            for (int i = 0; i < n; i++) {
-                printf("%c", first_buf[i]);
-            }
+            for (int i = 0; i < n; i++)
+			{
+				printf("%c", first_buf[i]);
+			}
             (void) printf("\n");
         }
 		close(fd);
@@ -72,7 +166,7 @@ void generate_map(char * filename, int line_num, int width, int height) {
 		    i++;
 		}
 		close(tst);
-		printf("RECEIVED: \n");
+		printf("\nFILE CONTENTS: \n");
 		for (int i = 0; i < height; i++) {
 		    printf("%s\n", map[i]);
 		}
@@ -80,7 +174,9 @@ void generate_map(char * filename, int line_num, int width, int height) {
 		char fin_buf[MAX_LINE_LEN];
 
 		fd = open("/dev/asciimap", O_RDWR);
-		write(fd, map, sizeof(map));
+		int w = write(fd, map, sizeof(map));
+		if (w == 0)
+			(void) fprintf(stderr, "WRITE FAILED: got %d\n", w);
 		
 		int l = read(fd, fin_buf, sizeof(fin_buf));
 		if (l == 0) {
@@ -89,10 +185,15 @@ void generate_map(char * filename, int line_num, int width, int height) {
                 perror("read(asciimap) failed");
         } else {
             (void) printf("NEW MAP received:  \n");
-            for (int i = 0; i < l; i++) {
-                printf("%c", fin_buf[i]);
-            }
+            for (int i = 0; i < l; i++)
+			{
+				printf("%c", fin_buf[i]);
+			}
             (void) printf("\n");
+
+			(void) printf("\nioctl TESTS: \n");
+			test_ioctl(fd);
+			test_seek(fd);
         }
 		close(fd);
 

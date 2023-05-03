@@ -83,6 +83,8 @@ static int device_open(struct inode*, struct file*);
 static int  device_release(struct inode*, struct file*);
 static ssize_t device_read(struct file*, char*, size_t, loff_t*);
 static ssize_t device_write(struct file*, const char*, size_t, loff_t*);
+static long my_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
+static loff_t device_lseek(struct file *file, loff_t offset, int whence);
 
 /* Kernel module-related */
 
@@ -97,10 +99,12 @@ static ssize_t device_write(struct file*, const char*, size_t, loff_t*);
  */
 struct file_operations Fops =
 {
+	.llseek = device_lseek,
 	.open = device_open, /* open */
 	.read = device_read, /* read */
 	.write = device_write, /* write */
-	.release = device_release  /* a.k.a. close */
+	.release = device_release,  /* a.k.a. close */
+	.unlocked_ioctl = my_ioctl
 #if 0
 	.owner = NULL,   /* owner */
 	.seek = NULL,   /* seek */

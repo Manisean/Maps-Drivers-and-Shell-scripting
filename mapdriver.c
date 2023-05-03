@@ -3,14 +3,13 @@
  * Program by: 
  * 	  Mark Hunnewell, Kristen DeMatteo, and Sparrow Hopp
  */
-
 #include "mapdriver.h"
 #include "team_gen.h"
 
 #define BSIZE 1024
-#define RESET_MAP _IO('k', 0)
-#define ZERO_OUT_BUFFER _IO('k', 1)
-#define CHECK_MAP _IO('k', 2)
+#define RESET_MAP _IO('m', 0)
+#define ZERO_OUT_BUFFER _IO('m', 1)
+#define CHECK_MAP _IO('m', 2)
 
 /* Driver's Status is kept here */
 static driver_status_t status =
@@ -23,6 +22,7 @@ static driver_status_t status =
 	-1     /* minor */
 };
 
+loff_t pos = 0;
 char map[BSIZE*BSIZE+WIDTH];
 void init_map(void)
 {	
@@ -141,17 +141,20 @@ static ssize_t device_read(file, buffer, length, offset)
 	int buff_len;
 	int bytes_read = 0;
 
+	*offset = pos;
+	printk ("POS: %lld OFF: %lld", pos, *offset);
+
 	buff_len = sizeof(map);
 
     if (*offset >= buff_len)
-        return 0;
+    	return 0;
 
     if (*offset + length > buff_len)
         length = buff_len - *offset;
 
-    while (bytes_read < length) {
-		put_user(map[bytes_read], buffer++);
-        bytes_read++;
+    for (bytes_read = 0; bytes_read < length; bytes_read++) {
+        if (put_user(map[*offset + bytes_read], buffer + bytes_read))
+            return -EFAULT;
     }
 
     *offset += bytes_read;
@@ -172,12 +175,11 @@ static ssize_t device_write(file, buffer, length, offset)
 	ssize_t bytes_written = 0;
 	int buff_len = sizeof(map);
 
-    if (length > buff_len) { // check if the write size is larger than the buffer size
+    if (length > buff_len) {
         printk(KERN_WARNING "write size is larger than buffer size\n");
-        length = buff_len; // if it is, truncate the write size to the buffer size
     }
 
-    if (copy_from_user(map, buffer, length) != 0) { // copy the data from the user space buffer to the kernel space buffer
+    if (copy_from_user(map, buffer, length) != 0) {
         return -EFAULT;
     }
 
@@ -189,18 +191,15 @@ static ssize_t device_write(file, buffer, length, offset)
     return bytes_written;
 }
 
-long my_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+static long my_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
     switch (cmd) {
         case RESET_MAP:
-            // reset the map to its initial state
-            memset(map, 0, sizeof(map));
+			memset(map, 0, sizeof(map));
 			init_map();
             break;
         case ZERO_OUT_BUFFER:
-            // zero out the entire buffer
-            memset(status.buf, 0, sizeof(status.buf));
-            status.buf_ptr = status.buf;
+            memset(map, 0, sizeof(map));
             break;
         case CHECK_MAP:
             {
@@ -208,10 +207,6 @@ long my_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
                 bool error = false;
 
                 len = strcspn(map, "\n");
-                if ((len % WIDTH) != 0) {
-                    printk(KERN_INFO "Map is inconsistent: byte length over width of the first line does not yield an integer.\n");
-                    error = true;
-                }
 
                 for (i = 0; i < BSIZE; i++) {
                     if (map[i] == '\0') {
@@ -238,30 +233,31 @@ long my_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 static loff_t device_lseek(struct file *file, loff_t offset, int whence)
 {
-    loff_t newpos = 0;
+	loff_t newpos;
 
     switch (whence) {
-        case 0:
+        case SEEK_SET:
             newpos = offset;
             break;
 
-        case 1: 
-            newpos = file->f_pos + offset;
+        case SEEK_CUR:
+            newpos = pos + offset;
             break;
 
-        case 2: 
-            newpos = strlen(status.buf) + offset;
+        case SEEK_END:
+            newpos = sizeof(map) + offset;
             break;
 
         default:
             return -EINVAL;
     }
 
-    if (newpos < 0 || newpos > strlen(status.buf))
+    if (newpos < 0 || newpos > sizeof(map)) {
         return -EINVAL;
+    }
 
-    file->f_pos = newpos;
-    return newpos;
+    pos = newpos;
+    return pos;
 }
 
 

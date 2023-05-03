@@ -13,7 +13,7 @@ Then register an ASCII driver:
 $ sudo make prog
 
 To run the test program type:
-$ ./mapdriver-test
+$ ./mapdriver-test [test file] [start line] [width] [height]
 
 To run the premade test type:
 $ make test1
@@ -26,6 +26,11 @@ $ make clean
 
 Known Issues
 ------------
+The device_write() function only copies roughl half the data it should, we have not bee able to find out
+why it does this. The function also fails to properly write '\n' newlines, so data will appear seperated
+by large spaces instead, we dont know why it doesnt do this. The map is accurate desides these points, so
+some minor adjusting of the terminal size may be required to view it properly.
+
 When running multiple files will print the following messages for each parameter:
 "open() failed: No such file"
 "Failed to generate map for"
@@ -38,6 +43,9 @@ Another known issue is that at the end of the program the following error occurs
 
 We were unable to dicover the cause of this error, however it does not seem to impact the function of the
 program.
+
+To check the IOCTL CHECK_MAP test:
+enter DMESG to view the printk lines specifiying non-ascii characters in the file nonascii.txt
 
 
 EOF
