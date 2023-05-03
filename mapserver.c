@@ -11,7 +11,8 @@
 
 #define LOG_FILE "mapserver.log"
 #define MAP_FILE "/dev/asciimap"
-#define MAP_SIZE 80*24
+#define MAP_SIZE 80 * 24
+#define DEFAULT_PORT 8080
 
 void log_message(char *message) {
     FILE *log_file = fopen(LOG_FILE, "a");
@@ -25,8 +26,8 @@ void send_error(int client_socket, char *error_message) {
     int message_size = sizeof(char) + sizeof(int) + strlen(error_message);
     char *message = malloc(message_size);
     message[0] = RESPONSE_ERROR;
-    *((int *)(message+1)) = strlen(error_message);
-    memcpy(message+sizeof(char)+sizeof(int), error_message, strlen(error_message));
+    *((int *)(message + 1)) = strlen(error_message);
+    memcpy(message + sizeof(char) + sizeof(int), error_message, strlen(error_message));
     send(client_socket, message, message_size, 0);
     free(message);
 }
@@ -76,19 +77,19 @@ void handle_client(int client_socket) {
     fclose(map_file);
 
     // Send map to client
-    int response_size = sizeof(char) + 2*sizeof(int) + MAP_SIZE;
+    int response_size = sizeof(char) + 2 * sizeof(int) + MAP_SIZE;
     char *response = malloc(response_size);
     response[0] = RESPONSE_MAP;
-    *((int *)(response+sizeof(char))) = width;
-    *((int *)(response+sizeof(char)+sizeof(int))) = height;
-    memcpy(response+sizeof(char)+2*sizeof(int), map, MAP_SIZE);
+    *((int *)(response + sizeof(char))) = width;
+    *((int *)(response + sizeof(char) + sizeof(int))) = height;
+    memcpy(response + sizeof(char) + 2 * sizeof(int), map, MAP_SIZE);
     if (send(client_socket, response, response_size, 0) < 0) {
-    perror("send");
-    log_message("Error: Failed to send response to client.");
+        perror("send");
+        log_message("Error: Failed to send response to client.");
+        free(response);
+        return;
+    }
     free(response);
-    return;
-}
-free(response);
 }
 
 int main(int argc, char **argv) {
@@ -102,7 +103,7 @@ int main(int argc, char **argv) {
     }
 
     // Set socket options
-    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) < 0) {
+    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
         perror("setsockopt");
         return 1;
     }
@@ -110,7 +111,7 @@ int main(int argc, char **argv) {
     // Bind socket to port and address
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(DEFAULT_PORT);
 
     if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {

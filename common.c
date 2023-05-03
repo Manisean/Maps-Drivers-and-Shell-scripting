@@ -55,3 +55,27 @@ void perrexit(char* format, ...) {
     exit(1);
     va_end(args);
 }
+
+ssize_t send_all(int sockfd, const void *buf, size_t len, int flags) {
+    size_t total_sent = 0;
+    while (total_sent < len) {
+        ssize_t sent = send(sockfd, buf + total_sent, len - total_sent, flags);
+        if (sent < 0) {
+            return -1;
+        }
+        total_sent += sent;
+    }
+    return total_sent;
+}
+
+ssize_t recv_all(int sockfd, void *buf, size_t len, int flags) {
+    size_t total_received = 0;
+    while (total_received < len) {
+        ssize_t received = recv(sockfd, buf + total_received, len - total_received, flags);
+        if (received <= 0) {
+            return received;
+        }
+        total_received += received;
+    }
+    return total_received;
+}

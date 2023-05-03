@@ -62,5 +62,4 @@ run-server: mapserver
 mapserver: mapserver.c common.c common.h
 	$(CC) $(CC_OPTIONS) $(INC) -o mapserver mapserver.c common.c -D_DEFAULT_SOURCE
 
-
 # EOF
