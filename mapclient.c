@@ -20,17 +20,6 @@ void log_message(char *message) {
 
 int main(int argc, char **argv) {
 
-    int clientid = open(CLIENT_LOG, O_WRONLY);
-    if (clientid == -1)
-    {
-        char err_msg[256];
-        //use snprintf)_ to print to the buffer instead of to stdout
-        snprintf(err_msg, 256, "Error opening file '%s'", CLIENT_LOG);
-        //use perror() to output the specific error
-        perror(err_msg);
-        return 1;
-    }
-
     if (argc != 3) {
         printf("Usage: %s width height\n", argv[0]);
         return 1;
@@ -57,7 +46,7 @@ int main(int argc, char **argv) {
         perror("connect");
         return 1;
     }
-    fprintf("connected!\n\n");
+    log_message("connected!\n\n");
 
     // Send request to server
     char request[REQUEST_SIZE];
@@ -89,7 +78,7 @@ int main(int argc, char **argv) {
 
     printf("Received map with dimensions %d x %d\n", response_width, response_height);
     printf("%s\n", response+1+2*sizeof(int));
-    log_message("%s\n", response+1+2*sizeof(int));
+    log_message(response+1+2*sizeof(int));
 
     // Close socket
     close(sock);
