@@ -32,6 +32,7 @@
 #define DEFAULT_IP "127.0.0.1"
 
 #define REQUEST_SIZE 2
+#define MAP_SIZE 10
 #define RESPONSE_SIZE MAP_SIZE + 2 * sizeof(int) + sizeof(char)
 
 #define REQUEST_MAP 'M'

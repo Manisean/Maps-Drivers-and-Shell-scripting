@@ -16,7 +16,7 @@ OBJ=main.o $(DRIVER)
 
 obj-m += $(DRIVER)
 
-all: $(EXE) $(CLIENT)
+all: $(EXE) $(CLIENT) $(SERVER)
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 prog:
@@ -25,7 +25,7 @@ prog:
 	chmod 766 /dev/asciimap
 
 clean:
-	rm -f $(EXE) $(OBJ) $(CLIENT)
+	rm -f $(EXE) $(OBJ) $(CLIENT) $(SERVER)
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 
 compile: $(EXE) $(OBJ)
@@ -56,10 +56,11 @@ $(CLIENT): mapclient.c common.c common.h
 $(EXE): mapdriver.c common.c common.h
 	$(CC) $(CC_OPTIONS) $(INC) -o $(EXE) mapdriver.c common.c
 
-run-server: mapserver
-	./mapserver 3000
+$(SERVER): mapserver.c common.c common.h
+	$(CC) $(CC_OPTIONS) $(INC) -o $(SERVER) mapserver.c common.c
 
-mapserver: mapserver.c common.c common.h
-	$(CC) $(CC_OPTIONS) $(INC) -o mapserver mapserver.c common.c -D_DEFAULT_SOURCE
+run-server: $(SERVER)
+	./$(SERVER) 3000
 
-# EOF
+.PHONY: all prog clean compile register test1 test2 clean-all run-server
+
